@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "development" ]
+  pull_request:
+    branches: [ "main", "development" ]
+    
+  workflow_dispatch:
+
+jobs:
+  deploy_to_development:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/development'
+    
+    environment:
+      name: development
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run script for Development
+        run: echo 'I am running a job in the development environment'
+        
+  deploy_to_production:
+      runs-on: ubuntu-latest
+      if: github.ref == 'refs/heads/main'
+      environment:
+        name: production
+  
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
+  
+        - name: Run script for Production
+          run: echo 'I am running a job in the production environment'
