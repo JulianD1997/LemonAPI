@@ -1,0 +1,30 @@
+services:
+  exercise_api:
+    build: ./exerciseAPI
+    container_name: exercise_api
+    ports:
+      - '8000:8000'
+    depends_on:
+      - lemon_db
+    environment:
+      - DATABASE_URL=postgresql://postgres:admin1234@lemon_db:5432/lemon_db
+    volumes:
+      - .:/app
+    restart: always
+
+  lemon_db:
+    image: postgres:15
+    container_name: postgres_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - exercise_db_data:/var/lib/postgresql/data
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin1234
+      POSTGRES_DB: lemon_db
+
+volumes:
+  exercise_db_data:
+    driver: local

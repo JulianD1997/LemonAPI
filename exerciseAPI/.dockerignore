@@ -1,0 +1,41 @@
+# Ignorar el directorio de entornos virtuales (si lo tienes)
+venv/
+env/
+.venv/
+
+# Archivos compilados de Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Archivos de configuración del editor de texto (ej. VS Code, Sublime, etc.)
+.vscode/
+.idea/
+
+# Archivos de caché
+__pycache__/
+*.db
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos y carpetas de tests
+tests/
+test/
+
+# Archivos y directorios específicos de herramientas
+*.coverage
+*.tox/
+*.nox/
+*.coverage.*
+*.hypothesis/
+.tox/
+
+# Ignorar archivos temporales y de respaldo
+*.bak
+*.swp
+*.swo
+*~
