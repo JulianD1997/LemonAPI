@@ -2,15 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [ "main", "development" ]
+    branches: ['main', 'development']
   pull_request:
-    branches: [ "main", "development" ]
-    
+    branches: ['main', 'development']
+
   workflow_dispatch:
 
 jobs:
   deploy_to_development:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: github.ref == 'refs/heads/development'
     environment:
       name: development
@@ -19,28 +19,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy via SSH and run Docker Compose
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          script: |
-            cd /ruta/a/tu/proyecto
-            git pull origin development
-            docker-compose down
-            docker-compose up -d --build
-        
+      - name: Pull latest changes and deploy with Docker Compose
+        run: |
+          git pull origin development
+          docker-compose down
+          docker-compose up -d --build
+
   deploy_to_production:
-      runs-on: ubuntu-latest
-      if: github.ref == 'refs/heads/main'
-      environment:
-        name: production
-  
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v4
-  
-        - name: Run script for Production
-          run: echo 'I am running a job in the production environment'
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run script for Production
+        run: echo 'I am running a job in the production environment'
