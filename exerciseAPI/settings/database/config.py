@@ -1,5 +1,3 @@
-from contextlib import contextmanager
-
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -14,7 +12,6 @@ Base = declarative_base()
 
 
 # sesión de la base de datos
-@contextmanager
 def get_db():
     db = SessionLocal()
     try:

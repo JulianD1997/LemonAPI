@@ -1,12 +1,11 @@
+from settings.database.config import Base
 from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
-
-from exerciseAPI.settings.database.config import Base
 
 
 class Lesson(Base):
     __tablename__ = "lessons"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String, nullable=False, index=True)
     topic_id = Column(
         Integer, ForeignKey("topics.id", ondelete="CASCADE"), nullable=False

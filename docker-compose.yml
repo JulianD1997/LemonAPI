@@ -18,7 +18,7 @@ services:
     ports:
       - '5432:5432'
     volumes:
-      - exercise_db_data:/var/lib/postgresql/data
+      - ./lemon_db:/var/lib/postgresql/data
     restart: always
     environment:
       POSTGRES_USER: postgres

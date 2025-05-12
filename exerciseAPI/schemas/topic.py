@@ -14,8 +14,10 @@ class TopicUpdate(TopicBase):
     pass
 
 
-class TopicOut(TopicBase):
+class TopicOut(BaseModel):
     id: int
-
-    class Config:
-        from_attributes = True
+    course_name: str
+    name: str
+    model_config = {
+        "from_attributes": True,
+    }

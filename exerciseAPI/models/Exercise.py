@@ -1,6 +1,6 @@
 from enum import Enum
 
-from exerciseAPI.settings.database.config import Base
+from settings.database.config import Base
 from sqlalchemy import Boolean, Column
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy import ForeignKey, Integer, String, Text
@@ -15,7 +15,7 @@ class ExerciseType(str, Enum):
 
 class Exercise(Base):
     __tablename__ = "exercises"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     ex_type = Column(SQLAlchemyEnum(ExerciseType), nullable=False)
     title = Column(String, nullable=False, index=True)
     exercise_text = Column(Text)
@@ -31,7 +31,7 @@ class Exercise(Base):
 
 class Option(Base):
     __tablename__ = "options"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     text = Column(String, nullable=False)
     is_correct = Column(Boolean, nullable=False, default=False)
     exercise_id = Column(

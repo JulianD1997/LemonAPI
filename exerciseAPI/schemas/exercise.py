@@ -1,8 +1,7 @@
 from typing import List
 
+from models.Exercise import ExerciseType
 from pydantic import BaseModel
-
-from exerciseAPI.models.Exercise import ExerciseType
 
 from .option import OptionCreate, OptionOut
 
