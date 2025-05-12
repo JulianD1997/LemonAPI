@@ -1,6 +1,6 @@
 from enum import Enum
 
-from database.config import Base
+from exerciseAPI.settings.database.config import Base
 from sqlalchemy import Boolean, Column
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy import ForeignKey, Integer, String, Text

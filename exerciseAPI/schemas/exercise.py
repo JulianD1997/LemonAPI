@@ -1,8 +1,8 @@
-from enum import Enum
 from typing import List
 
-from models.Exercise import ExerciseType
 from pydantic import BaseModel
+
+from exerciseAPI.models.Exercise import ExerciseType
 
 from .option import OptionCreate, OptionOut
 
@@ -24,7 +24,7 @@ class ExerciseOut(ExerciseBase):
     options: List[OptionOut]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ExerciseTypeListOut(BaseModel):

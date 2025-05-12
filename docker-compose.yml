@@ -1,6 +1,6 @@
 services:
   exercise_api:
-    build: ./exerciseAPI
+    build: ./exerciseAPI/
     container_name: exercise_api
     ports:
       - '8000:8000'

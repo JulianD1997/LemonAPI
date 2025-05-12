@@ -1,6 +1,7 @@
-from database.config import Base
 from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
+
+from exerciseAPI.settings.database.config import Base
 
 
 class Topic(Base):
