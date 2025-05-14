@@ -20,4 +20,13 @@ class TopicOut(BaseModel):
     name: str
     model_config = {
         "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 1,
+                    "course_name": "precalculus",
+                    "name": "linear equations",
+                }
+            ],
+        },
     }

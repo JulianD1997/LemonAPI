@@ -18,7 +18,7 @@ services:
     ports:
       - '5432:5432'
     volumes:
-      - ./lemon_db:/var/lib/postgresql/data
+      - exercise_db_data:/var/lib/postgresql/data
     restart: always
     environment:
       POSTGRES_USER: postgres
@@ -27,4 +27,3 @@ services:
 
 volumes:
   exercise_db_data:
-    driver: local

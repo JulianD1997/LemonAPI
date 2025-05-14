@@ -14,8 +14,19 @@ class LessonUpdate(LessonBase):
     pass
 
 
-class LessonOut(LessonBase):
+class LessonOut(BaseModel):
     id: int
-
-    class Config:
-        from_attributes = True
+    topic_name: str
+    name: str
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 1,
+                    "name": "Solving linear equations",
+                    "topic_name": "Linear equations",
+                }
+            ],
+        },
+    }

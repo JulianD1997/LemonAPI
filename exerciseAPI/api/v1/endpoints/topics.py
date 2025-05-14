@@ -126,7 +126,7 @@ async def get_topic(topic_id: int, db: Session = Depends(get_db)):
     try:
         result = (
             db.query(
-                Topic.id, Topic.name, Topic.course_id, Course.name.label("course_name")
+                Topic.id, Topic.name, Course.name.label("course_name")
             )
             .join(Topic.course)
             .filter(Topic.id == topic_id)

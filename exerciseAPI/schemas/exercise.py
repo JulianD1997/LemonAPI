@@ -3,7 +3,7 @@ from typing import List
 from models.Exercise import ExerciseType
 from pydantic import BaseModel
 
-from .option import OptionCreate, OptionOut
+from .option import OptionCreate, OptionSafeOut
 
 
 class ExerciseBase(BaseModel):
@@ -18,13 +18,52 @@ class ExerciseCreate(ExerciseBase):
     options: List[OptionCreate]
 
 
-class ExerciseOut(ExerciseBase):
+class ExerciseListOut(BaseModel):
     id: int
-    options: List[OptionOut]
+    title: str
+    ex_type: ExerciseType
+    exercise_text: str
+    lesson_name: int
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 1,
+                    "name": ".....",
+                    "ex_type": "MULTIPLE_CHOICE",
+                    "exercise_text": ".....",
+                    "lesson_name": ".....",
+                }
+            ],
+        },
+    }
 
-    class Config:
-        from_attributes = True
 
+class ExerciseDetailOut(BaseModel):
+    id: int
+    title: str
+    ex_type: ExerciseType
+    exercise_text: str
+    lesson_name: str
+    options: List[OptionSafeOut]
 
-class ExerciseTypeListOut(BaseModel):
-    types: List[str]
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 12,
+                    "title": "...",
+                    "ex_type": "...",
+                    "exercise_text": "...",
+                    "lesson_name": "...",
+                    "options": [
+                        {"id": 1, "text": "..."},
+                        {"id": 2, "text": "..."},
+                        {"id": 3, "text": "..."},
+                    ],
+                }
+            ],
+        },
+    }

@@ -15,3 +15,20 @@ class OptionOut(OptionBase):
 
     class Config:
         from_attributes = True
+
+
+class OptionSafeOut(BaseModel):
+    id: int
+    text: str
+
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 1,
+                    "text": ".....",
+                }
+            ],
+        },
+    }
