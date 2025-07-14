@@ -1,7 +1,10 @@
-from typing import List
+from datetime import datetime
+from typing import List, Optional
 
-from models.Exercise import ExerciseType
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
+
+from exerciseAPI.models.Exercise import ExerciseType
+from exerciseAPI.schemas.topic import TopicOut
 
 from .option import OptionCreate, OptionSafeOut
 
@@ -14,6 +17,14 @@ class ExerciseBase(BaseModel):
     lesson_id: int
 
 
+class ExerciseUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    type: Optional[ExerciseType] = None
+    difficulty_level: Optional[str] = None
+    topic_id: Optional[int] = None
+
+
 class ExerciseCreate(ExerciseBase):
     options: List[OptionCreate]
 
@@ -23,7 +34,12 @@ class ExerciseListOut(BaseModel):
     title: str
     ex_type: ExerciseType
     exercise_text: str
-    lesson_name: int
+
+    @computed_field
+    @property
+    def lesson_name(self) -> str:
+        return self.lesson.name
+
     model_config = {
         "from_attributes": True,
         "json_schema_extra": {
@@ -45,7 +61,12 @@ class ExerciseDetailOut(BaseModel):
     title: str
     ex_type: ExerciseType
     exercise_text: str
-    lesson_name: str
+
+    @computed_field
+    @property
+    def lesson_name(self) -> str:
+        return self.lesson.name
+
     options: List[OptionSafeOut]
 
     model_config = {
@@ -67,3 +88,17 @@ class ExerciseDetailOut(BaseModel):
             ],
         },
     }
+
+
+class ExerciseOut(BaseModel):
+    id: int
+    title: str
+    description: str
+    type: ExerciseType
+    difficulty_level: str
+    updated_at: datetime
+    created_at: datetime
+    topic: TopicOut
+
+    class Config:
+        from_attributes = True

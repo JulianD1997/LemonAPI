@@ -12,7 +12,6 @@ class CourseBase(BaseModel):
         if len(value) < 5:
             raise ValueError("El nombre del curso debe tener al menos 5 caracteres.")
         if not re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúñÑ0-9 ]+", value):
-            print(f"aca, {value}")
             raise ValueError(
                 "El nombre del curso no puede contener caracteres especiales."
             )

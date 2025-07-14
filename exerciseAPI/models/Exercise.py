@@ -1,10 +1,11 @@
 from enum import Enum
 
-from settings.database.config import Base
 from sqlalchemy import Boolean, Column
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
+
+from exerciseAPI.core.database import Base
 
 
 class ExerciseType(str, Enum):

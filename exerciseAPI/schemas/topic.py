@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 
 
 class TopicBase(BaseModel):
@@ -16,15 +16,20 @@ class TopicUpdate(TopicBase):
 
 class TopicOut(BaseModel):
     id: int
-    course_name: str
     name: str
+
+    @computed_field
+    @property
+    def course_name(self) -> str:
+        return self.course.name
+
     model_config = {
         "from_attributes": True,
         "json_schema_extra": {
             "examples": [
                 {
                     "id": 1,
-                    "course_name": "precalculus",
+                    "course_name": "Precalculus",
                     "name": "linear equations",
                 }
             ],

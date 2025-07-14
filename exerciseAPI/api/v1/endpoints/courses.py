@@ -1,184 +1,109 @@
-from fastapi import APIRouter, Depends, status
-from models import Course
-from schemas.course import CourseCreate, CourseOut, CourseUpdate
-from schemas.response import ResponseBase, common_response
-from settings.database.config import get_db
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, Response, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from exerciseAPI.api.v1.dependencies import get_object_or_404
+from exerciseAPI.api.v1.utils import create_response
+from exerciseAPI.core.database import get_db
+from exerciseAPI.models import Course
+from exerciseAPI.schemas.course import CourseCreate, CourseOut, CourseUpdate
+from exerciseAPI.schemas.response import ResponseBase, common_response
+from exerciseAPI.services.course_service import course_service
 
 router = APIRouter()
+
+get_course_or_404 = get_object_or_404(course_service)
 
 
 @router.post(
     "/",
-    response_model=ResponseBase,
+    response_model=ResponseBase[CourseOut],
     status_code=status.HTTP_201_CREATED,
     responses={201: common_response[201], 500: common_response[500]},
+    summary="Crear un nuevo curso",
 )
-async def create_course(course_create: CourseCreate, db: Session = Depends(get_db)):
+async def create_course(
+    course_create: CourseCreate, db: AsyncSession = Depends(get_db)
+):
     """
-    Crea un nuevo curso.
+    Crea un nuevo curso en la base de datos de forma asíncrona.
     """
-    try:
-        new_course = Course(course_create.model_dump())
-        db.add(new_course)
-        db.commit()
-        db.refresh(new_course)
-        return ResponseBase(
-            status_code=status.HTTP_201_CREATED,
-            message="Curso creado con éxito",
-            success=True,
-        )
-    except SQLAlchemyError:
-        db.rollback()
-        return ResponseBase(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Error al crear el curso",
-            success=False,
-        )
+    new_course = await course_service.create(db=db, obj_in=course_create)
+    course_out = CourseOut.model_validate(new_course, from_attributes=True)
+    return create_response(
+        data=[course_out],
+        message="Curso creado con éxito",
+        status_code=status.HTTP_201_CREATED,
+    )
 
 
 @router.get(
     "/",
-    response_model=ResponseBase,
+    response_model=ResponseBase[CourseOut],
     status_code=status.HTTP_200_OK,
     responses={200: common_response[200], 500: common_response[500]},
+    summary="Obtener todos los cursos",
 )
-async def get_courses(db: Session = Depends(get_db)):
+async def get_courses(db: AsyncSession = Depends(get_db)):
     """
-    Obtiene todos los cursos.
+    Obtiene una lista de todos los cursos de forma asíncrona.
     """
-    try:
-        orm_courses = db.query(Course).all()
-        courses = [
-            CourseOut.model_validate(course, from_attributes=True)
-            for course in orm_courses
-        ]
-        return ResponseBase(
-            status_code=status.HTTP_200_OK,
-            message="Cursos obtenidos con éxito",
-            success=True,
-            results=courses,
-        )
-    except SQLAlchemyError:
-        return ResponseBase(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Error al obtener los cursos",
-            success=False,
-        )
+    courses_orm = await course_service.get_multi(db=db, limit=100)
+    courses_out = [
+        CourseOut.model_validate(c, from_attributes=True) for c in courses_orm
+    ]
+    return create_response(data=courses_out, message="Cursos obtenidos con éxito")
 
 
 @router.get(
     "/{course_id}",
-    response_model=ResponseBase,
+    response_model=ResponseBase[CourseOut],
     status_code=status.HTTP_200_OK,
-    responses={
-        200: common_response[200],
-        404: common_response[400],
-        500: common_response[500],
-    },
+    responses={404: common_response[404], 500: common_response[500]},
+    summary="Obtener un curso por ID",
 )
-async def get_course(course_id: int, db: Session = Depends(get_db)):
+async def get_course(course: Course = Depends(get_course_or_404)):
     """
-    Obtiene todos los cursos.
+    Obtiene un curso específico por su ID usando una dependencia.
     """
-    try:
-        course = db.query(Course).filter(Course.id == course_id).first()
-        if not course:
-            return ResponseBase(
-                status_code=status.HTTP_404_NOT_FOUND,
-                message="Curso no encontrado",
-                success=False,
-            )
-        course = CourseOut.model_validate(course, from_attributes=True)
-        return ResponseBase(
-            status_code=status.HTTP_200_OK,
-            message="Curso obtenido con éxito",
-            success=True,
-            results=[course],
-        )
-    except SQLAlchemyError:
-        return ResponseBase(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Error al obtener el curso",
-            success=False,
-        )
+    course_out = CourseOut.model_validate(course, from_attributes=True)
+    return create_response(data=[course_out], message="Curso obtenido con éxito")
 
 
 @router.put(
     "/{course_id}",
-    response_model=ResponseBase,
+    response_model=ResponseBase[CourseOut],
     status_code=status.HTTP_200_OK,
-    responses={
-        200: common_response[200],
-        404: common_response[400],
-        500: common_response[500],
-    },
+    responses={404: common_response[404], 500: common_response[500]},
+    summary="Actualizar un curso por ID",
 )
 async def update_course(
-    course_id: int, course_update: CourseUpdate, db: Session = Depends(get_db)
+    course_update: CourseUpdate,
+    course_to_update: Course = Depends(get_course_or_404),
+    db: AsyncSession = Depends(get_db),
 ):
     """
-    Obtiene todos los cursos.
+    Actualiza la información de un curso existente de forma asíncrona.
+    La dependencia se encarga de obtener el curso o devolver un 404.
     """
-    try:
-        course = db.query(Course).filter(Course.id == course_id).first()
-        if not course:
-            return ResponseBase(
-                status_code=status.HTTP_404_NOT_FOUND,
-                message="Curso no encontrado",
-                success=False,
-            )
-
-        course.name = course_update.name
-        db.commit()
-        db.refresh(course)
-        return ResponseBase(
-            status_code=status.HTTP_200_OK,
-            message="Curso actualizado con éxito",
-            success=True,
-        )
-    except SQLAlchemyError:
-        return ResponseBase(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Error al actualizar el curso",
-            success=False,
-        )
+    updated_course = await course_service.update(
+        db=db, db_obj=course_to_update, obj_in=course_update
+    )
+    course_out = CourseOut.model_validate(updated_course, from_attributes=True)
+    return create_response(data=[course_out], message="Curso actualizado con éxito")
 
 
 @router.delete(
     "/{course_id}",
-    response_model=ResponseBase,
-    status_code=status.HTTP_200_OK,
-    responses={
-        200: common_response[200],
-        404: common_response[400],
-        500: common_response[500],
-    },
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={404: common_response[404], 500: common_response[500]},
+    summary="Eliminar un curso por ID",
 )
-async def delete_course(course_id: int, db: Session = Depends(get_db)):
+async def delete_course(
+    course_to_delete: Course = Depends(get_course_or_404),
+    db: AsyncSession = Depends(get_db),
+):
     """
-    Obtiene todos los cursos.
+    Elimina un curso de la base de datos de forma asíncrona.
     """
-    try:
-        course = db.query(Course).filter(Course.id == course_id).first()
-        if not course:
-            return ResponseBase(
-                status_code=status.HTTP_404_NOT_FOUND,
-                message="Curso no encontrado",
-                success=False,
-            )
-        db.delete(course)
-        db.commit()
-        db.refresh(course)
-        return ResponseBase(
-            status_code=status.HTTP_200_OK,
-            message="Curso actualizado con éxito",
-            success=True,
-        )
-    except SQLAlchemyError:
-        return ResponseBase(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Error al actualizar el curso",
-            success=False,
-        )
+    await course_service.remove(db=db, id=course_to_delete.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

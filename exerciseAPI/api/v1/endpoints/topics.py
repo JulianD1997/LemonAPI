@@ -1,233 +1,132 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, status
-from models import Course, Topic
-from schemas.response import ResponseBase, common_response
-from schemas.topic import TopicCreate, TopicOut, TopicUpdate
-from settings.database.config import get_db
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from exerciseAPI.api.v1.dependencies import get_object_or_404
+from exerciseAPI.api.v1.utils import create_response
+from exerciseAPI.core.database import get_db
+from exerciseAPI.models import Topic
+from exerciseAPI.schemas.response import ResponseBase
+from exerciseAPI.schemas.topic import TopicCreate, TopicOut, TopicUpdate
+from exerciseAPI.services.course_service import course_service
+from exerciseAPI.services.topic_service import topic_service
 
 router = APIRouter()
 
 
+get_topic_or_404 = get_object_or_404(topic_service)
+
+
 @router.post(
     "/",
-    response_model=ResponseBase,
+    response_model=ResponseBase[TopicOut],
     status_code=status.HTTP_201_CREATED,
-    responses={201: common_response[201], 500: common_response[500]},
+    summary="Crear un nuevo tema",
 )
-async def create_topic(topic_create: TopicCreate, db: Session = Depends(get_db)):
+async def create_topic(topic_create: TopicCreate, db: AsyncSession = Depends(get_db)):
     """
-    Crear un nuevo tema para un curso.
-    """
-    try:
-        course = db.query(Course).filter(Course.id == topic_create.course_id).first()
-        if not course:
-            return ResponseBase(
-                status_code=status.HTTP_404_NOT_FOUND,
-                message="Curso no encontrado",
-                success=False,
-            )
+    Crea un nuevo tema asociado a un curso.
 
-        new_topic = Topic(**topic_create.model_dump())
-        db.add(new_topic)
-        db.commit()
-        db.refresh(new_topic)
-        return ResponseBase(
-            status_code=status.HTTP_201_CREATED,
-            message="Tema creado con éxito",
-            success=True,
+    - **Valida** que el curso (`course_id`) exista.
+    - **Crea** el tema de forma asíncrona.
+    - **Retorna** el tema recién creado.
+    """
+    course = await course_service.get(db=db, id=topic_create.course_id)
+    if not course:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"El curso con id {topic_create.course_id} no existe.",
         )
-    except SQLAlchemyError:
-        db.rollback()
-        return ResponseBase(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Error al crear el tema",
-            success=False,
-        )
+
+    new_topic = await topic_service.create(db=db, obj_in=topic_create)
+    topic_out = TopicOut.model_validate(new_topic, from_attributes=True)
+
+    return create_response(
+        data=[topic_out],
+        message="Tema creado con éxito",
+        status_code=status.HTTP_201_CREATED,
+    )
 
 
 @router.get(
     "/",
-    response_model=ResponseBase,
-    status_code=status.HTTP_200_OK,
-    responses={200: common_response[200], 500: common_response[500]},
+    response_model=ResponseBase[TopicOut],
+    summary="Obtener temas (con filtro opcional por curso)",
 )
 async def get_topics(
-    course_name: Optional[str] = Query(default=None),
-    course_id: Optional[int] = Query(default=None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
+    course_id: Optional[int] = Query(
+        default=None, description="Filtrar temas por ID de curso"
+    ),
 ):
     """
-    Obtiene todos los temas con el nombre de su curso.
+    Obtiene una lista de temas.
+
+    - Si se provee `course_id`, filtra los temas para ese curso.
+    - De lo contrario, devuelve todos los temas.
     """
-    try:
-        course = (
-            db.query(Course).filter(Course.id == course_id).first()
-            if course_id
-            else db.query(Course).filter(Course.name == course_name).first()
-        )
-        if not course:
-            return ResponseBase(
-                status_code=status.HTTP_404_NOT_FOUND,
-                message="Curso no encontrado",
-                success=False,
-            )
+    if course_id is not None:
+        topics_orm = await topic_service.get_multi_by_course(db, course_id=course_id)
+    else:
+        topics_orm = await topic_service.get_multi(db, limit=100)
 
-        query = db.query(Topic.id, Topic.name, Course.name.label("course_name")).join(
-            Topic.course
-        )
-
-        if course_name:
-            query = query.filter(Course.name.ilike(f"{course_name}%"))
-        if course_id:
-            query = query.filter(Course.id == course_id)
-
-        result = query.all()
-
-        topics = [
-            TopicOut(
-                id=row.id,
-                name=row.name,
-                course_name=row.course_name,
-            )
-            for row in result
-        ]
-
-        return ResponseBase(
-            status_code=status.HTTP_200_OK,
-            message="Temas obtenidos con éxito",
-            success=True,
-            results=topics,
-        )
-    except SQLAlchemyError:
-        return ResponseBase(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Error al obtener los temas",
-            success=False,
-        )
+    topics_out = [TopicOut.model_validate(t, from_attributes=True) for t in topics_orm]
+    return create_response(data=topics_out, message="Temas obtenidos con éxito")
 
 
 @router.get(
     "/{topic_id}",
-    response_model=ResponseBase,
-    status_code=status.HTTP_200_OK,
-    responses={
-        200: common_response[200],
-        404: common_response[404],
-        500: common_response[500],
-    },
+    response_model=ResponseBase[TopicOut],
+    summary="Obtener un tema por ID",
 )
-async def get_topic(topic_id: int, db: Session = Depends(get_db)):
+async def get_topic(topic: Topic = Depends(get_topic_or_404)):
     """
-    Obtiene un tema por ID (optimizado).
+    Obtiene un único tema por su ID usando la dependencia.
     """
-    try:
-        result = (
-            db.query(
-                Topic.id, Topic.name, Course.name.label("course_name")
-            )
-            .join(Topic.course)
-            .filter(Topic.id == topic_id)
-            .first()
-        )
-        if not result:
-            return ResponseBase(
-                status_code=status.HTTP_404_NOT_FOUND,
-                message="Tema no encontrado",
-                success=False,
-            )
-        topic = TopicOut.model_validate(result, from_attributes=True)
-        return ResponseBase(
-            status_code=status.HTTP_200_OK,
-            message="Tema obtenido con éxito",
-            success=True,
-            results=[topic],
-        )
-    except SQLAlchemyError:
-        return ResponseBase(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Error al obtener el tema",
-            success=False,
-        )
+    topic_out = TopicOut.model_validate(topic, from_attributes=True)
+    return create_response(data=[topic_out], message="Tema obtenido con éxito")
 
 
 @router.put(
     "/{topic_id}",
-    response_model=ResponseBase,
-    status_code=status.HTTP_200_OK,
-    responses={
-        200: common_response[200],
-        404: common_response[404],
-        500: common_response[500],
-    },
+    response_model=ResponseBase[TopicOut],
+    summary="Actualizar un tema por ID",
 )
 async def update_topic(
-    topic_id: int, topic_update: TopicUpdate, db: Session = Depends(get_db)
+    topic_update: TopicUpdate,
+    topic_to_update: Topic = Depends(get_topic_or_404),
+    db: AsyncSession = Depends(get_db),
 ):
     """
-    Actualiza un tema por ID.
+    Actualiza la información de un tema existente de forma asíncrona.
     """
-    try:
-        topic = db.query(Topic).filter(Topic.id == topic_id).first()
-        if not topic:
-            return ResponseBase(
+    if topic_update.course_id is not None:
+        course = await course_service.get(db=db, id=topic_update.course_id)
+        if not course:
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                message="Tema no encontrado",
-                success=False,
+                detail=f"El curso con id {topic_update.course_id} no existe.",
             )
-        topic.name = topic_update.name
-        topic.course_id = topic_update.course_id
-        db.commit()
-        db.refresh(topic)
-        return ResponseBase(
-            status_code=status.HTTP_200_OK,
-            message="Tema actualizado con éxito",
-            success=True,
-        )
-    except SQLAlchemyError:
-        db.rollback()
-        return ResponseBase(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Error al actualizar el tema",
-            success=False,
-        )
+
+    updated_topic = await topic_service.update(
+        db=db, db_obj=topic_to_update, obj_in=topic_update
+    )
+    topic_out = TopicOut.model_validate(updated_topic, from_attributes=True)
+    return create_response(data=[topic_out], message="Tema actualizado con éxito")
 
 
 @router.delete(
     "/{topic_id}",
-    response_model=ResponseBase,
-    status_code=status.HTTP_200_OK,
-    responses={
-        200: common_response[200],
-        404: common_response[404],
-        500: common_response[500],
-    },
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Eliminar un tema por ID",
 )
-async def delete_topic(topic_id: int, db: Session = Depends(get_db)):
+async def delete_topic(
+    topic_to_delete: Topic = Depends(get_topic_or_404),
+    db: AsyncSession = Depends(get_db),
+):
     """
-    Elimina un tema por ID.
+    Elimina un tema de la base de datos de forma asíncrona.
     """
-    try:
-        topic = db.query(Topic).filter(Topic.id == topic_id).first()
-        if not topic:
-            return ResponseBase(
-                status_code=status.HTTP_404_NOT_FOUND,
-                message="Tema no encontrado",
-                success=False,
-            )
-        db.delete(topic)
-        db.commit()
-        return ResponseBase(
-            status_code=status.HTTP_200_OK,
-            message="Tema eliminado con éxito",
-            success=True,
-        )
-    except SQLAlchemyError:
-        db.rollback()
-        return ResponseBase(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Error al eliminar el tema",
-            success=False,
-        )
+    await topic_service.remove(db=db, id=topic_to_delete.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

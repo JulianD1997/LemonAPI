@@ -1,6 +1,7 @@
-from settings.database.config import Base
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
+
+from exerciseAPI.core.database import Base
 
 
 class Course(Base):

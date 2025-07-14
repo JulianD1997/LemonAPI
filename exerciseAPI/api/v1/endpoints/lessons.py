@@ -1,223 +1,127 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, status
-from models import Lesson, Topic
-from schemas.lesson import LessonCreate, LessonOut, LessonUpdate
-from schemas.response import ResponseBase, common_response
-from settings.database.config import get_db
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from exerciseAPI.api.v1.dependencies import get_object_or_404
+from exerciseAPI.api.v1.utils import create_response
+from exerciseAPI.core.database import get_db
+from exerciseAPI.models import Lesson
+from exerciseAPI.schemas.lesson import LessonCreate, LessonOut, LessonUpdate
+from exerciseAPI.schemas.response import ResponseBase
+from exerciseAPI.services.lesson_service import lesson_service
+from exerciseAPI.services.topic_service import topic_service
 
 router = APIRouter()
+
+get_lesson_or_404 = get_object_or_404(lesson_service)
 
 
 @router.post(
     "/",
-    response_model=ResponseBase,
+    response_model=ResponseBase[LessonOut],
     status_code=status.HTTP_201_CREATED,
-    responses={201: common_response[201], 500: common_response[500]},
+    summary="Crear una nueva lección",
 )
 async def create_lesson(
-    lesson_create: LessonCreate,
-    db: Session = Depends(get_db),
+    lesson_create: LessonCreate, db: AsyncSession = Depends(get_db)
 ):
     """
-    Crear una nueva lección para un tema.
-    """
-    try:
-        topic = db.query(Topic).filter(Topic.id == lesson_create.topic_id).first()
-        if not topic:
-            return ResponseBase(
-                status_code=status.HTTP_404_NOT_FOUND,
-                message="Tema no encontrado",
-                success=False,
-            )
+    Crea una nueva lección asociada a un tema.
 
-        new_lesson = Lesson(**lesson_create.model_dump())
-        db.add(new_lesson)
-        db.commit()
-        db.refresh(new_lesson)
-        return ResponseBase(
-            status_code=status.HTTP_201_CREATED,
-            message="Lección creada con éxito",
-            success=True,
+    - **Valida** que el tema (`topic_id`) exista.
+    - **Crea** la lección de forma asíncrona.
+    - **Retorna** la lección recién creada.
+    """
+    topic = await topic_service.get(db=db, id=lesson_create.topic_id)
+    if not topic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"El tema con id {lesson_create.topic_id} no existe.",
         )
-    except SQLAlchemyError:
-        db.rollback()
-        return ResponseBase(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Error al crear la lección",
-            success=False,
-        )
+
+    new_lesson = await lesson_service.create(db=db, obj_in=lesson_create)
+    lesson_out = LessonOut.model_validate(new_lesson, from_attributes=True)
+
+    return create_response(
+        data=[lesson_out],
+        message="Lección creada con éxito",
+        status_code=status.HTTP_201_CREATED,
+    )
 
 
 @router.get(
     "/",
-    response_model=ResponseBase,
-    status_code=status.HTTP_200_OK,
-    responses={200: common_response[200], 500: common_response[500]},
+    response_model=ResponseBase[LessonOut],
+    summary="Obtener lecciones (con filtro opcional por tema)",
 )
 async def get_lessons(
-    topic_id: Optional[int] = Query(default=None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
+    topic_id: Optional[int] = Query(
+        default=None, description="Filtrar lecciones por ID de tema"
+    ),
 ):
-    try:
-        topic = db.query(Topic).filter(Topic.id == topic_id).first()
+    """
+    Obtiene una lista de lecciones.
 
-        if not topic:
-            return ResponseBase(
-                status_code=status.HTTP_404_NOT_FOUND,
-                message="Tema no encontrado",
-                success=False,
-            )
+    - Si se provee `topic_id`, filtra las lecciones para ese tema.
+    - De lo contrario, devuelve todas las lecciones (considerar paginación aquí).
+    """
+    if topic_id is not None:
+        lessons_orm = await lesson_service.get_multi_by_topic(db, topic_id=topic_id)
+    else:
+        lessons_orm = await lesson_service.get_multi(db, limit=100)
 
-        query = db.query(Lesson.id, Lesson.name, Topic.name.label("topic_name")).join(
-            Lesson.topic
-        )
-        if topic_id:
-            query = query.filter(Topic.id == topic_id)
-        result = query.all()
-
-        lessons = [
-            LessonOut(
-                id=row.id,
-                name=row.name,
-                topic_name=row.topic_name,
-            )
-            for row in result
-        ]
-
-        return ResponseBase(
-            status_code=status.HTTP_200_OK,
-            message="Lecciones obtenidas con éxito",
-            success=True,
-            results=lessons,
-        )
-    except SQLAlchemyError:
-        return ResponseBase(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Error al obtener las lecciones",
-            success=False,
-        )
+    lessons_out = [
+        LessonOut.model_validate(ln, from_attributes=True) for ln in lessons_orm
+    ]
+    return create_response(data=lessons_out, message="Lecciones obtenidas con éxito")
 
 
 @router.get(
     "/{lesson_id}",
-    response_model=ResponseBase,
-    status_code=status.HTTP_200_OK,
-    responses={
-        200: common_response[200],
-        404: common_response[404],
-        500: common_response[500],
-    },
+    response_model=ResponseBase[LessonOut],
+    summary="Obtener una lección por ID",
 )
-async def get_lesson(lesson_id: int, db: Session = Depends(get_db)):
+async def get_lesson(lesson: Lesson = Depends(get_lesson_or_404)):
     """
-    Obtiene una lección por ID.
+    Obtiene una única lección por su ID usando la dependencia.
     """
-    try:
-        result = (
-            db.query(Lesson.id, Lesson.name, Topic.name.label("topic_name"))
-            .join(Lesson.topic)
-            .filter(Lesson.id == lesson_id)
-            .first()
-        )
-        if not result:
-            return ResponseBase(
-                status_code=status.HTTP_404_NOT_FOUND,
-                message="lección no encontrado",
-                success=False,
-            )
-        lesson = LessonOut.model_validate(result, from_attributes=True)
-        return ResponseBase(
-            status_code=status.HTTP_200_OK,
-            message="Lección obtenida con éxito",
-            success=True,
-            results=[lesson],
-        )
-    except SQLAlchemyError:
-        return ResponseBase(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Error al obtener la lección",
-            success=False,
-        )
+    lesson_out = LessonOut.model_validate(lesson, from_attributes=True)
+    return create_response(data=[lesson_out], message="Lección obtenida con éxito")
 
 
 @router.put(
     "/{lesson_id}",
-    response_model=ResponseBase,
-    status_code=status.HTTP_200_OK,
-    responses={
-        200: common_response[200],
-        404: common_response[404],
-        500: common_response[500],
-    },
+    response_model=ResponseBase[LessonOut],
+    summary="Actualizar una lección por ID",
 )
 async def update_lesson(
-    lesson_id: int, lesson_update: LessonUpdate, db: Session = Depends(get_db)
+    lesson_update: LessonUpdate,
+    lesson_to_update: Lesson = Depends(get_lesson_or_404),
+    db: AsyncSession = Depends(get_db),
 ):
     """
-    Actualiza una lección por ID.
+    Actualiza la información de una lección existente de forma asíncrona.
     """
-    try:
-        lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
-        if not lesson:
-            return ResponseBase(
-                status_code=status.HTTP_404_NOT_FOUND,
-                message="Lección no encontrada",
-                success=False,
-            )
-        lesson.name = lesson_update.name
-        lesson.topic_id = lesson_update.topic_id
-        db.commit()
-        db.refresh(lesson)
-        return ResponseBase(
-            status_code=status.HTTP_200_OK,
-            message="Lección actualizada con éxito",
-            success=True,
-        )
-    except SQLAlchemyError:
-        db.rollback()
-        return ResponseBase(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Error al actualizar la lección",
-            success=False,
-        )
+    updated_lesson = await lesson_service.update(
+        db=db, db_obj=lesson_to_update, obj_in=lesson_update
+    )
+    lesson_out = LessonOut.model_validate(updated_lesson, from_attributes=True)
+    return create_response(data=[lesson_out], message="Lección actualizada con éxito")
 
 
 @router.delete(
     "/{lesson_id}",
-    response_model=ResponseBase,
-    status_code=status.HTTP_200_OK,
-    responses={
-        200: common_response[200],
-        404: common_response[404],
-        500: common_response[500],
-    },
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Eliminar una lección por ID",
 )
-async def delete_lesson(lesson_id: int, db: Session = Depends(get_db)):
+async def delete_lesson(
+    lesson_to_delete: Lesson = Depends(get_lesson_or_404),
+    db: AsyncSession = Depends(get_db),
+):
     """
-    Elimina una lección por ID.
+    Elimina una lección de la base de datos de forma asíncrona.
     """
-    try:
-        lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
-        if not lesson:
-            return ResponseBase(
-                status_code=status.HTTP_404_NOT_FOUND,
-                message="Lección no encontrada",
-                success=False,
-            )
-        db.delete(lesson)
-        db.commit()
-        return ResponseBase(
-            status_code=status.HTTP_200_OK,
-            message="Lección eliminada con éxito",
-            success=True,
-        )
-    except SQLAlchemyError:
-        db.rollback()
-        return ResponseBase(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Error al eliminar la lección",
-            success=False,
-        )
+    await lesson_service.remove(db=db, id=lesson_to_delete.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
