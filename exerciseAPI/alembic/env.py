@@ -25,8 +25,6 @@ target_metadata = Base.metadata
 
 async_db_url = settings.DATABASE_URL
 
-print(async_db_url)
-
 sync_db_url = async_db_url.replace("postgresql+asyncpg", "postgresql")
 
 config.set_main_option("sqlalchemy.url", sync_db_url)

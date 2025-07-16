@@ -71,6 +71,15 @@ def upgrade() -> None:
         ],
     )
     # No se insertan datos en exercises y options ya que estaban vacíos en el backup.
+    op.execute(
+        "SELECT setval('public.courses_id_seq', (SELECT MAX(id) FROM public.courses)+ 1, false);"
+    )
+    op.execute(
+        "SELECT setval('public.topics_id_seq', (SELECT MAX(id) FROM public.topics) + 1, false);"
+    )
+    op.execute(
+        "SELECT setval('public.lessons_id_seq', (SELECT MAX(id) FROM public.lessons) + 1, false);"
+    )
 
 
 def downgrade() -> None:

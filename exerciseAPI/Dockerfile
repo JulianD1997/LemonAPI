@@ -1,12 +1,29 @@
-FROM python:3.12-slim
+FROM python:3.12-slim as builder
 
-WORKDIR /code
+WORKDIR /app
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+RUN pip install --no-cache-dir --upgrade pip && \
+  pip install --no-cache-dir -r requirements.txt
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY --from=builder /opt/venv /opt/venv
 
 
 COPY . .
+COPY entrypoint.sh /exerciseAPI/entrypoint.sh
+RUN chmod +x /exerciseAPI/entrypoint.sh
+
+ENV PATH="/opt/venv/bin:$PATH"
+
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT [ "exerciseAPI/entrypoint.sh" ]
+CMD ["uvicorn", "exerciseAPI.main:app", "--host", "0.0.0.0", "--port", "8000"]
