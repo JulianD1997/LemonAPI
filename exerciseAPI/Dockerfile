@@ -1,4 +1,4 @@
-FROM python:3.12-slim as builder
+FROM python:3.12-slim AS build
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY --from=builder /opt/venv /opt/venv
+COPY --from=build /opt/venv /opt/venv
 
 
 COPY . .
@@ -26,4 +26,4 @@ ENV PATH="/opt/venv/bin:$PATH"
 EXPOSE 8000
 
 ENTRYPOINT [ "exerciseAPI/entrypoint.sh" ]
-CMD ["uvicorn", "exerciseAPI.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "exerciseAPI.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers","4"]

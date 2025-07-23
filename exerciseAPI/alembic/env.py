@@ -10,7 +10,7 @@ from sqlalchemy.pool import NullPool
 
 from exerciseAPI.core.config import settings
 from exerciseAPI.core.database import Base
-from exerciseAPI.models import Course, Exercise, Lesson, Option, Topic
+from exerciseAPI.models import Course, Exercise, Lesson, Module, Option, Topic
 
 config = context.config
 

@@ -12,6 +12,7 @@ class ExerciseType(str, Enum):
     multiple_choice = "multiple_choice"
     true_false = "true_false"
     unique_answer = "unique_answer"
+    interactive_function = "interactive_function"
 
 
 class Exercise(Base):
@@ -24,10 +25,22 @@ class Exercise(Base):
     lesson_id = Column(
         Integer, ForeignKey("lessons.id", ondelete="CASCADE"), nullable=False
     )
-    lesson = relationship("Lesson", back_populates="exercises")
+    lesson = relationship("Lesson", back_populates="exercises", lazy="selectin")
     options = relationship(
-        "Option", back_populates="exercise", cascade="all, delete-orphan"
+        "Option",
+        back_populates="exercise",
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
+    module = relationship(
+        "Module",
+        secondary="module_exercise",
+        back_populates="exercises",
+        lazy="selectin",
+    )
+
+    def __repr__(self):
+        return f"<Exercise(id={self.id}, title='{self.title}', type='{self.ex_type}')>"
 
 
 class Option(Base):
@@ -38,4 +51,4 @@ class Option(Base):
     exercise_id = Column(
         Integer, ForeignKey("exercises.id", ondelete="CASCADE"), nullable=False
     )
-    exercise = relationship("Exercise", back_populates="options")
+    exercise = relationship("Exercise", back_populates="options", lazy="selectin")

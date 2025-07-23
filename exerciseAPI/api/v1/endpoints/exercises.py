@@ -7,11 +7,7 @@ from exerciseAPI.api.v1.dependencies import get_object_or_404
 from exerciseAPI.api.v1.utils import create_response
 from exerciseAPI.core.database import get_db
 from exerciseAPI.models import Exercise
-from exerciseAPI.schemas.exercise import (
-    ExerciseCreate,
-    ExerciseDetailOut,
-    ExerciseListOut,
-)
+from exerciseAPI.schemas.exercise import ExerciseCreate, ExerciseOut, ExerciseUpdate
 from exerciseAPI.schemas.response import ResponseBase
 from exerciseAPI.services.exercise_service import exercise_service
 from exerciseAPI.services.lesson_service import lesson_service
@@ -19,12 +15,12 @@ from exerciseAPI.services.lesson_service import lesson_service
 router = APIRouter()
 
 
-get_exercise_or_404 = get_object_or_404(exercise_service)
+get_exercise_or_404 = get_object_or_404(exercise_service, param_name="exercise_id")
 
 
 @router.post(
     "/",
-    response_model=ResponseBase[ExerciseDetailOut],
+    response_model=ResponseBase[ExerciseOut],
     status_code=status.HTTP_201_CREATED,
     summary="Crear un nuevo ejercicio",
 )
@@ -45,7 +41,7 @@ async def create_exercise(
             detail=f"La lección con id {exercise_create.lesson_id} no existe.",
         )
     new_exercise = await exercise_service.create(db=db, obj_in=exercise_create)
-    exercise_out = ExerciseDetailOut.model_validate(new_exercise, from_attributes=True)
+    exercise_out = ExerciseOut.model_validate(new_exercise, from_attributes=True)
 
     return create_response(
         data=[exercise_out],
@@ -56,7 +52,7 @@ async def create_exercise(
 
 @router.get(
     "/",
-    response_model=ResponseBase[ExerciseListOut],
+    response_model=ResponseBase[ExerciseOut],
     summary="Obtener ejercicios (con filtro opcional por lección)",
 )
 async def get_exercises(
@@ -83,14 +79,19 @@ async def get_exercises(
         exercises_orm = await exercise_service.get_multi(db, skip=skip, limit=limit)
 
     exercises_out = [
-        ExerciseListOut.model_validate(ex, from_attributes=True) for ex in exercises_orm
+        ExerciseOut.model_validate(ex, from_attributes=True) for ex in exercises_orm
     ]
+    if len(exercises_out) == 0:
+        return create_response(
+            data=[],
+            message="No se encontraron ejercicios.",
+        )
     return create_response(data=exercises_out, message="Ejercicios obtenidos con éxito")
 
 
 @router.get(
     "/{exercise_id}",
-    response_model=ResponseBase[ExerciseDetailOut],
+    response_model=ResponseBase[ExerciseOut],
     summary="Obtener un ejercicio por ID",
 )
 async def get_exercise(exercise: Exercise = Depends(get_exercise_or_404)):
@@ -98,8 +99,30 @@ async def get_exercise(exercise: Exercise = Depends(get_exercise_or_404)):
     Obtiene un único ejercicio por su ID usando la dependencia,
     incluyendo sus opciones.
     """
-    exercise_out = ExerciseDetailOut.model_validate(exercise, from_attributes=True)
+    exercise_out = ExerciseOut.model_validate(exercise, from_attributes=True)
     return create_response(data=[exercise_out], message="Ejercicio obtenido con éxito")
+
+
+@router.put(
+    "/{exercise_id}",
+    response_model=ResponseBase[ExerciseOut],
+    summary="Actualizar un ejercicio por ID",
+)
+async def update_exercise(
+    exercise_update: ExerciseUpdate,
+    exercise_to_update: Exercise = Depends(get_exercise_or_404),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Actualiza la información de un ejercicio existente de forma asíncrona.
+    """
+    updated_exercise = await exercise_service.update(
+        db=db, db_obj=exercise_to_update, obj_in=exercise_update
+    )
+    exercise_out = ExerciseOut.model_validate(updated_exercise, from_attributes=True)
+    return create_response(
+        data=[exercise_out], message="Ejercicio actualizado con éxito"
+    )
 
 
 @router.delete(

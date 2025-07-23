@@ -1,9 +1,17 @@
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, ConfigDict, field_validator
+
+from exerciseAPI.schemas.topic import TopicOut
+from exerciseAPI.schemas.validators import create_title_validator, empty_str_to_none
 
 
 class LessonBase(BaseModel):
-    name: str
+    title: str
+    description: str | None = None
     topic_id: int
+    _validate_title = field_validator("title")(create_title_validator(min_length=5))
+    _normalize_description = field_validator("description", mode="before")(
+        empty_str_to_none
+    )
 
 
 class LessonCreate(LessonBase):
@@ -14,24 +22,28 @@ class LessonUpdate(LessonBase):
     pass
 
 
-class LessonOut(BaseModel):
+class LessonDetailOut(BaseModel):
     id: int
-    name: str
-
-    @computed_field
-    @property
-    def topic_name(self) -> str:
-        return self.topic.name
-
+    title: str
+    description: str | None = None
+    topic: TopicOut
     model_config = {
         "from_attributes": True,
         "json_schema_extra": {
             "examples": [
                 {
                     "id": 1,
-                    "name": "Solving linear equations",
-                    "topic_name": "Linear equations",
+                    "title": "Solving linear equations",
+                    "description": "Learn how to solve linear equations step by step.",
+                    "topic_title": "Linear equations",
                 }
             ],
         },
     }
+
+
+class LessonOut(BaseModel):
+    id: int
+    title: str
+
+    model_config = ConfigDict(from_attributes=True)

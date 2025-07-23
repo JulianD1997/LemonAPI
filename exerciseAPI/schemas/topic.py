@@ -1,9 +1,18 @@
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, ConfigDict, field_validator
+
+from exerciseAPI.schemas.course import CourseOut
+from exerciseAPI.schemas.validators import create_title_validator, empty_str_to_none
 
 
 class TopicBase(BaseModel):
-    name: str
+    title: str
+    description: str | None = None
     course_id: int
+    _normalize_description = field_validator("description", mode="before")(
+        empty_str_to_none
+    )
+
+    _validate_title = field_validator("title")(create_title_validator(min_length=5))
 
 
 class TopicCreate(TopicBase):
@@ -14,14 +23,12 @@ class TopicUpdate(TopicBase):
     pass
 
 
-class TopicOut(BaseModel):
+class TopicDetailOut(BaseModel):
     id: int
-    name: str
+    title: str
+    description: str | None = None
 
-    @computed_field
-    @property
-    def course_name(self) -> str:
-        return self.course.name
+    course: CourseOut
 
     model_config = {
         "from_attributes": True,
@@ -29,9 +36,17 @@ class TopicOut(BaseModel):
             "examples": [
                 {
                     "id": 1,
-                    "course_name": "Precalculus",
-                    "name": "linear equations",
+                    "course": {"id": 1, "title": "Precalculus"},
+                    "description": "A topic on linear equations",
+                    "title": "linear equations",
                 }
             ],
         },
     }
+
+
+class TopicOut(BaseModel):
+    id: int
+    title: str
+
+    model_config = ConfigDict(from_attributes=True)

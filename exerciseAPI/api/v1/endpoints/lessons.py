@@ -14,7 +14,8 @@ from exerciseAPI.services.topic_service import topic_service
 
 router = APIRouter()
 
-get_lesson_or_404 = get_object_or_404(lesson_service)
+
+get_lesson_or_404 = get_object_or_404(lesson_service, param_name="lesson_id")
 
 
 @router.post(
@@ -28,10 +29,6 @@ async def create_lesson(
 ):
     """
     Crea una nueva lección asociada a un tema.
-
-    - **Valida** que el tema (`topic_id`) exista.
-    - **Crea** la lección de forma asíncrona.
-    - **Retorna** la lección recién creada.
     """
     topic = await topic_service.get(db=db, id=lesson_create.topic_id)
     if not topic:
@@ -60,17 +57,27 @@ async def get_lessons(
     topic_id: Optional[int] = Query(
         default=None, description="Filtrar lecciones por ID de tema"
     ),
+    page: int = Query(default=1, ge=1, description="Número de página"),
+    limit: int = Query(default=10, ge=1, le=100, description="Ejercicios por página"),
 ):
     """
-    Obtiene una lista de lecciones.
-
-    - Si se provee `topic_id`, filtra las lecciones para ese tema.
-    - De lo contrario, devuelve todas las lecciones (considerar paginación aquí).
+    Obtiene una lista de lecciones sin cargar relaciones anidadas.
     """
+    skip = (page - 1) * limit
     if topic_id is not None:
-        lessons_orm = await lesson_service.get_multi_by_topic(db, topic_id=topic_id)
+        # 2. Eliminamos el argumento 'options'
+        lessons_orm = await lesson_service.get_multi_by_topic(
+            db,
+            topic_id=topic_id,
+            skip=skip,
+            limit=limit,
+        )
     else:
-        lessons_orm = await lesson_service.get_multi(db, limit=100)
+        lessons_orm = await lesson_service.get_multi(
+            db,
+            skip=skip,
+            limit=limit,
+        )
 
     lessons_out = [
         LessonOut.model_validate(ln, from_attributes=True) for ln in lessons_orm
@@ -85,7 +92,7 @@ async def get_lessons(
 )
 async def get_lesson(lesson: Lesson = Depends(get_lesson_or_404)):
     """
-    Obtiene una única lección por su ID usando la dependencia.
+    Obtiene una única lección por su ID (sin relaciones).
     """
     lesson_out = LessonOut.model_validate(lesson, from_attributes=True)
     return create_response(data=[lesson_out], message="Lección obtenida con éxito")
@@ -102,7 +109,7 @@ async def update_lesson(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Actualiza la información de una lección existente de forma asíncrona.
+    Actualiza la información de una lección existente.
     """
     updated_lesson = await lesson_service.update(
         db=db, db_obj=lesson_to_update, obj_in=lesson_update
@@ -121,7 +128,7 @@ async def delete_lesson(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Elimina una lección de la base de datos de forma asíncrona.
+    Elimina una lección de la base de datos.
     """
     await lesson_service.remove(db=db, id=lesson_to_delete.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

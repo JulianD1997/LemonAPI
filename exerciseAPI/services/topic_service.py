@@ -2,6 +2,7 @@ from typing import List
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import joinedload
 
 from exerciseAPI.models import Topic
 from exerciseAPI.schemas.topic import TopicCreate, TopicUpdate
@@ -18,6 +19,7 @@ class TopicService(BaseService[Topic, TopicCreate, TopicUpdate]):
         """
         result = await db.execute(
             select(self.model)
+            .options(joinedload(Topic.course))
             .filter(Topic.course_id == course_id)
             .offset(skip)
             .limit(limit)

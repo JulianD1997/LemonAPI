@@ -1,21 +1,18 @@
-import re
+from pydantic import BaseModel, field_validator
 
-from pydantic import BaseModel, Field, field_validator
+from exerciseAPI.schemas.validators import create_title_validator, empty_str_to_none
 
 
 class CourseBase(BaseModel):
-    name: str = Field(default=None, examples=["Precálculo"])
+    title: str
+    description: str | None = None
+    image_url: str | None = None
 
-    @field_validator("name")
-    def validate_name(cls, value):
-        value = value.lower()
-        if len(value) < 5:
-            raise ValueError("El nombre del curso debe tener al menos 5 caracteres.")
-        if not re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúñÑ0-9 ]+", value):
-            raise ValueError(
-                "El nombre del curso no puede contener caracteres especiales."
-            )
-        return value.lower()
+    _normalize_description = field_validator("description", "image_url", mode="before")(
+        empty_str_to_none
+    )
+
+    _validate_title = field_validator("title")(create_title_validator(min_length=5))
 
 
 class CourseCreate(CourseBase):
@@ -26,16 +23,26 @@ class CourseUpdate(CourseBase):
     pass
 
 
-class CourseOut(CourseBase):
+class CourseOut(BaseModel):
     id: int
+    title: str
+    description: str | None = None
+    image_url: str | None = None
 
     model_config = {
         "from_attributes": True,
         "json_schema_extra": {
-            "examples": [{"id": 1, "name": "Precálculo"}],
+            "examples": [
+                {
+                    "id": 1,
+                    "title": "Precalculus",
+                    "description": "Curso de precálculo",
+                    "image_url": "http://example.com/image.jpg",
+                }
+            ],
         },
     }
 
-    @field_validator("name")
-    def capitalize_name(cls, value):
+    @field_validator("title")
+    def capitalize_title(cls, value):
         return value.capitalize()

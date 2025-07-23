@@ -1,9 +1,10 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel
 
 from exerciseAPI.models.Exercise import ExerciseType
+from exerciseAPI.schemas.lesson import LessonOut
 from exerciseAPI.schemas.topic import TopicOut
 
 from .option import OptionCreate, OptionSafeOut
@@ -29,16 +30,11 @@ class ExerciseCreate(ExerciseBase):
     options: List[OptionCreate]
 
 
-class ExerciseListOut(BaseModel):
+class ExerciseOut(BaseModel):
     id: int
     title: str
     ex_type: ExerciseType
     exercise_text: str
-
-    @computed_field
-    @property
-    def lesson_name(self) -> str:
-        return self.lesson.name
 
     model_config = {
         "from_attributes": True,
@@ -61,11 +57,7 @@ class ExerciseDetailOut(BaseModel):
     title: str
     ex_type: ExerciseType
     exercise_text: str
-
-    @computed_field
-    @property
-    def lesson_name(self) -> str:
-        return self.lesson.name
+    lesson: LessonOut
 
     options: List[OptionSafeOut]
 
@@ -90,7 +82,7 @@ class ExerciseDetailOut(BaseModel):
     }
 
 
-class ExerciseOut(BaseModel):
+class ExerciseDetail_Out(BaseModel):
     id: int
     title: str
     description: str
