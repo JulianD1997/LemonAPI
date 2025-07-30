@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from exerciseAPI.schemas.course import CourseOut
+from exerciseAPI.schemas.course import CourseExerciseOut, CourseOut
 from exerciseAPI.schemas.validators import create_title_validator, empty_str_to_none
 
 
@@ -27,7 +27,6 @@ class TopicDetailOut(BaseModel):
     id: int
     title: str
     description: str | None = None
-
     course: CourseOut
 
     model_config = {
@@ -37,7 +36,6 @@ class TopicDetailOut(BaseModel):
                 {
                     "id": 1,
                     "course": {"id": 1, "title": "Precalculus"},
-                    "description": "A topic on linear equations",
                     "title": "linear equations",
                 }
             ],
@@ -45,8 +43,32 @@ class TopicDetailOut(BaseModel):
     }
 
 
+class TopicExerciseOut(BaseModel):
+    id: int
+    title: str
+    course: CourseExerciseOut
+
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 1,
+                    "course": {"id": 1, "title": "Precalculus"},
+                    "title": "linear equations",
+                }
+            ],
+        },
+    }
+
+    @field_validator("title")
+    def capitalize_title(cls, value):
+        return value.capitalize()
+
+
 class TopicOut(BaseModel):
     id: int
     title: str
+    description: str | None = None
 
     model_config = ConfigDict(from_attributes=True)

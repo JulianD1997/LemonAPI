@@ -33,22 +33,23 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         """
         statement = select(self.model)
 
-        # Bucle para aplicar filtros dinámicos si no son None.
         for key, value in kwargs.items():
-            if value is not None:
-                statement = statement.where(getattr(self.model, key) == value)
 
+            if value is not None:
+
+                if hasattr(self.model, key):
+                    statement = statement.where(getattr(self.model, key) == value)
+                else:
+                    warning_message = (
+                        f"Advertencia: El modelo {self.model.__name__} "
+                        f"no tiene el atributo '{key}' para filtrar."
+                    )
+                    print(warning_message)
+
+        # Aplica paginación y ejecuta
         statement = statement.offset(skip).limit(limit)
         result = await db.execute(statement)
         return result.scalars().all()
-
-    async def create(self, db: AsyncSession, *, obj_in: CreateSchemaType) -> ModelType:
-        obj_in_data = obj_in.model_dump()
-        db_obj = self.model(**obj_in_data)
-        db.add(db_obj)
-        await db.commit()
-        await db.refresh(db_obj)
-        return db_obj
 
     async def update(
         self,

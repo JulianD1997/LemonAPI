@@ -35,10 +35,10 @@ class Module(Base):
         Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False
     )
 
-    course = relationship("Course", back_populates="modules", lazy="selectin")
+    course = relationship("Course", back_populates="modules", lazy="select")
     exercises = relationship(
         "Exercise",
         secondary="module_exercise",
         back_populates="module",
-        lazy="selectin",
+        lazy="select",
     )

@@ -30,7 +30,7 @@ class ModuleUpdate(BaseModel):
     _validate_title = field_validator("title")(create_title_validator(min_length=5))
 
 
-class ModuleListOut(BaseModel):
+class ModuleOut(BaseModel):
     id: str
     title: str
     description: Optional[str] = None
@@ -38,7 +38,7 @@ class ModuleListOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class ModuleOut(BaseModel):
+class ModuleDetailOut(BaseModel):
     id: str
     title: str
     description: Optional[str] = None

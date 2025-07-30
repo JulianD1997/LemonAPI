@@ -46,3 +46,26 @@ class CourseOut(BaseModel):
     @field_validator("title")
     def capitalize_title(cls, value):
         return value.capitalize()
+
+
+class CourseExerciseOut(BaseModel):
+    id: int
+    title: str
+
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": 1,
+                    "title": "Precalculus",
+                    "description": "Curso de precálculo",
+                    "image_url": "http://example.com/image.jpg",
+                }
+            ],
+        },
+    }
+
+    @field_validator("title")
+    def capitalize_title(cls, value):
+        return value.capitalize()

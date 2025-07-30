@@ -1,13 +1,11 @@
-from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel
 
 from exerciseAPI.models.Exercise import ExerciseType
-from exerciseAPI.schemas.lesson import LessonOut
-from exerciseAPI.schemas.topic import TopicOut
+from exerciseAPI.schemas.lesson import LessonExerciseOut
 
-from .option import OptionCreate, OptionSafeOut
+from .option import OptionCreate, OptionExerciseOut, OptionUpdate
 
 
 class ExerciseBase(BaseModel):
@@ -24,6 +22,7 @@ class ExerciseUpdate(BaseModel):
     type: Optional[ExerciseType] = None
     difficulty_level: Optional[str] = None
     topic_id: Optional[int] = None
+    options: Optional[List[OptionUpdate]] = None
 
 
 class ExerciseCreate(ExerciseBase):
@@ -57,9 +56,10 @@ class ExerciseDetailOut(BaseModel):
     title: str
     ex_type: ExerciseType
     exercise_text: str
-    lesson: LessonOut
+    created_by: str
+    lesson: LessonExerciseOut
 
-    options: List[OptionSafeOut]
+    options: List[OptionExerciseOut]
 
     model_config = {
         "from_attributes": True,
@@ -70,7 +70,20 @@ class ExerciseDetailOut(BaseModel):
                     "title": "...",
                     "ex_type": "...",
                     "exercise_text": "...",
-                    "lesson_name": "...",
+                    "lesson": {
+                        "id": 1,
+                        "title": "Solving linear equations",
+                        "topic": {
+                            "id": 1,
+                            "title": "linear equations",
+                            "course": {
+                                "id": 1,
+                                "title": "Precalculus",
+                                "description": "Curso de precálculo",
+                                "image_url": "http://example.com/image.jpg",
+                            },
+                        },
+                    },
                     "options": [
                         {"id": 1, "text": "..."},
                         {"id": 2, "text": "..."},
@@ -80,17 +93,3 @@ class ExerciseDetailOut(BaseModel):
             ],
         },
     }
-
-
-class ExerciseDetail_Out(BaseModel):
-    id: int
-    title: str
-    description: str
-    type: ExerciseType
-    difficulty_level: str
-    updated_at: datetime
-    created_at: datetime
-    topic: TopicOut
-
-    class Config:
-        from_attributes = True
