@@ -60,8 +60,6 @@ async def get_courses(
         except Exception as e:
             print(f"Error validando el curso {c}: {e}")
 
-    print(courses_out)
-
     return create_response(data=courses_out, message="Cursos obtenidos con éxito")
 
 

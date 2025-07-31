@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -17,9 +17,12 @@ class ExerciseService(BaseService[Exercise, ExerciseCreate, ExerciseUpdate]):
         Este método sobrescribe el método 'create' de BaseService para manejar
         la creación de las opciones anidadas.
         """
+
         obj_in_data = obj_in.model_dump()
 
+        obj_in_data.pop("interactive_code", None)
         options_data = obj_in_data.pop("options", [])
+
         db_obj = self.model(**obj_in_data)
 
         db_obj.options = [Option(**opt) for opt in options_data]
@@ -30,45 +33,35 @@ class ExerciseService(BaseService[Exercise, ExerciseCreate, ExerciseUpdate]):
 
         return db_obj
 
-    async def get_multi_by_lesson(
-        self, db: AsyncSession, *, lesson_id: int, skip: int = 0, limit: int = 100
+    async def get_multi(
+        self,
+        db: AsyncSession,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+        lesson_id: Optional[int] = None,
+        topic_id: Optional[int] = None,
+        course_id: Optional[int] = None,
     ) -> List[Exercise]:
         """
-        Obtiene una lista de ejercicios para una lección específica.
+        Obtiene una lista de ejercicios, con la opción de filtrar por lección,
+        tema o curso. Los filtros son excluyentes por prioridad.
         """
-        return await self.get_multi(db, lesson_id=lesson_id, skip=skip, limit=limit)
+        query = select(self.model)
 
-    async def get_multi_by_topic(
-        self, db: AsyncSession, *, topic_id: int, skip: int = 0, limit: int = 100
-    ) -> List[Exercise]:
-        """
-        Obtiene una lista de ejercicios para un tema específico.
-        """
-        query = (
-            select(self.model)
-            .join(Lesson, self.model.lesson_id == Lesson.id)
-            .where(Lesson.topic_id == topic_id)
-            .options(selectinload(self.model.options))
-            .offset(skip)
-            .limit(limit)
-        )
-        result = await db.execute(query)
-        return result.scalars().unique().all()
+        if lesson_id is not None:
+            query = query.filter(self.model.lesson_id == lesson_id)
+        elif topic_id is not None:
+            query = query.join(Lesson).filter(Lesson.topic_id == topic_id)
+        elif course_id is not None:
+            query = (
+                query.join(Lesson, self.model.lesson_id == Lesson.id)
+                .join(Topic, Lesson.topic_id == Topic.id)
+                .filter(Topic.course_id == course_id)
+            )
 
-    async def get_multi_by_course(
-        self, db: AsyncSession, *, course_id: int, skip: int = 0, limit: int = 100
-    ) -> List[Exercise]:
-        """
-        Obtiene una lista de ejercicios para un curso específico.
-        """
         query = (
-            select(self.model)
-            .join(Lesson, self.model.lesson_id == Lesson.id)
-            .join(Topic, Lesson.topic_id == Topic.id)
-            .where(Topic.course_id == course_id)
-            .options(selectinload(self.model.options))
-            .offset(skip)
-            .limit(limit)
+            query.options(selectinload(self.model.options)).offset(skip).limit(limit)
         )
         result = await db.execute(query)
         return result.scalars().unique().all()

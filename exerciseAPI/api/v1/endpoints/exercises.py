@@ -72,7 +72,7 @@ async def create_exercise(
 @router.get(
     "/",
     response_model=ResponseBase[ExerciseOut],
-    summary="Obtener ejercicios (con filtro opcional por lección)",
+    summary="Obtener ejercicios (con filtro opcional)",
 )
 async def get_exercises(
     db: AsyncSession = Depends(get_db),
@@ -91,30 +91,25 @@ async def get_exercises(
     """
     Obtiene una lista paginada de ejercicios.
 
-    - Si se provee `lesson_id`, filtra los ejercicios para esa lección.
-    - De lo contrario, devuelve todos los ejercicios.
+    - Permite filtrar por `lesson_id`, `topic_id`, o `course_id`.
+    - Los filtros son excluyentes, con la siguiente prioridad: lesson_id, topic_id,
+    course_id.
     - Soporta paginación a través de `page` y `limit`.
     """
     skip = (page - 1) * limit
-    if lesson_id is not None:
-        exercises_orm = await exercise_service.get_multi_by_lesson(
-            db, lesson_id=lesson_id, skip=skip, limit=limit
-        )
-    elif topic_id is not None:
-        exercises_orm = await exercise_service.get_multi_by_topic(
-            db, topic_id=topic_id, skip=skip, limit=limit
-        )
-    elif course_id is not None:
-        exercises_orm = await exercise_service.get_multi_by_course(
-            db, course_id=course_id, skip=skip, limit=limit
-        )
-    else:
-        exercises_orm = await exercise_service.get_multi(db, skip=skip, limit=limit)
+    exercises_orm = await exercise_service.get_multi(
+        db,
+        skip=skip,
+        limit=limit,
+        lesson_id=lesson_id,
+        topic_id=topic_id,
+        course_id=course_id,
+    )
 
     exercises_out = [
         ExerciseOut.model_validate(ex, from_attributes=True) for ex in exercises_orm
     ]
-    if len(exercises_out) == 0:
+    if not exercises_out:
         return create_response(
             data=[],
             message="No se encontraron ejercicios.",
@@ -132,8 +127,6 @@ async def get_exercise(exercise: Exercise = Depends(get_exercise_details_or_404)
     Obtiene un único ejercicio por su ID usando la dependencia,
     incluyendo sus opciones y relaciones anidadas.
     """
-    print(f"Obteniendo ejercicio con ID: {exercise.id}")
-    print(f"Ejercicio: {exercise}")
     exercise_out = ExerciseDetailOut.model_validate(exercise, from_attributes=True)
     return create_response(data=[exercise_out], message="Ejercicio obtenido con éxito")
 

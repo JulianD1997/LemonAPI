@@ -46,7 +46,6 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
                     )
                     print(warning_message)
 
-        # Aplica paginación y ejecuta
         statement = statement.offset(skip).limit(limit)
         result = await db.execute(statement)
         return result.scalars().all()

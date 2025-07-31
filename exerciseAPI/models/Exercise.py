@@ -15,12 +15,21 @@ class ExerciseType(str, Enum):
     interactive_function = "interactive_function"
 
 
+class MathType(str, Enum):
+    SOLVE = "SOLVE"
+    REDUCE = "REDUCE"
+    DERIVE = "DERIVE"
+
+
 class Exercise(Base):
     __tablename__ = "exercises"
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     ex_type = Column(SQLAlchemyEnum(ExerciseType), nullable=False)
     title = Column(String, nullable=False, index=True)
     exercise_text = Column(Text)
+    initial_expression = Column(String, nullable=True)
+    expected_solution = Column(String, nullable=True)
+    math_type = Column(SQLAlchemyEnum(MathType), nullable=True)
     created_by = Column(String, nullable=False)
     lesson_id = Column(
         Integer, ForeignKey("lessons.id", ondelete="CASCADE"), nullable=False

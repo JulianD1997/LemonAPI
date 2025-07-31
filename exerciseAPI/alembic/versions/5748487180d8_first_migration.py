@@ -55,7 +55,11 @@ def upgrade() -> None:
         sa.Column(
             "ex_type",
             sa.Enum(
-                "multiple_choice", "true_false", "unique_answer", name="exercisetype"
+                "multiple_choice",
+                "true_false",
+                "unique_answer",
+                "interactive_function",
+                name="exercisetype",
             ),
             nullable=False,
         ),
